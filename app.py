@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import os
 from streamlit_autorefresh import st_autorefresh
+from datetime import datetime
 
 # --- 1. 共有データの設定 ---
 @st.cache_resource
@@ -12,6 +13,7 @@ global_data = get_global_state()
 
 def cleanup_rooms():
     rooms = global_data["rooms"]
+    # プレイヤーが0人の部屋を掃除
     to_delete = [r_id for r_id, r_data in rooms.items() if not r_data.get("players") and r_data.get("status") != "setup"]
     for r_id in to_delete:
         del rooms[r_id]
@@ -19,68 +21,56 @@ def cleanup_rooms():
 cleanup_rooms()
 st_autorefresh(interval=2500, key="global_sync_trigger")
 
-# --- 2. 表示サイズの設定（サイドバー） ---
-st.sidebar.title("📏 表示カスタマイズ")
-# 横幅の広さを調整（スマホだとここを小さくすると、カードがギュッと寄ります）
-container_width = st.sidebar.slider("全体の横幅感", 50, 100, 95)
-card_height = st.sidebar.slider("カードの高さ", 30, 150, 70)
-font_size = st.sidebar.slider("文字の大きさ", 8, 25, 12)
-column_gap = st.sidebar.slider("カードの間隔", 0, 20, 5)
-
-# --- 3. デザイン設定（CSS） ---
-st.markdown(f"""
+# --- 2. デザイン設定（CSS） ---
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
-    html, body, [class*="css"] {{ font-family: 'Noto Sans JP', sans-serif; }}
+    html, body, [class*="css"] { font-family: 'Noto Sans JP', sans-serif; }
     
-    /* 全体のコンテンツ幅を制限してカードを中央に寄せる */
-    .block-container {{
-        max-width: {container_width}% !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }}
-
-    /* カード（ボタン）の動的サイズ設定 */
-    div.stButton > button {{
-        width: 100% !important; 
-        height: {card_height}px !important;
-        font-size: {font_size}px !important;
+    /* カードの基本設定 */
+    div.stButton > button {
+        width: 100% !important; height: 100px !important;
         background-color: white !important; color: black !important;
         border: 1px solid #333 !important; font-weight: bold !important;
         border-radius: 4px !important;
-        padding: 0px !important;
-        margin-bottom: {column_gap}px !important;
-    }}
-    
-    /* カラム間の隙間調整 */
-    [data-testid="column"] {{
-        padding: 0 {column_gap // 2}px !important;
-    }}
-    
-    .flipped-card {{
-        height: {card_height}px !important; 
-        font-size: {font_size}px !important;
-        width: 100%; border-radius: 4px;
+    }
+    .flipped-card {
+        height: 100px; width: 100%; border-radius: 4px;
         display: flex; align-items: center; justify-content: center;
-        font-weight: bold; margin-bottom: {column_gap}px !important;
+        font-weight: bold; font-size: 1.1rem; margin-bottom: 1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        text-align: center;
-        line-height: 1.2;
-    }}
-
-    .player-tag-text {{
+    }
+    .player-tag-text {
         padding: 6px 10px; color: white; font-weight: bold; 
-        font-size: 0.8rem; border-radius: 4px; margin-bottom: 4px;
-    }}
-    .hint-area {{
-        background-color: #ffffff; padding: 10px; border-radius: 4px;
-        text-align: center; border: 2px solid #000; margin-bottom: 15px;
-    }}
+        flex-grow: 1; font-size: 0.8rem; border-radius: 4px; margin-bottom: 2px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hint-area {
+        background-color: #ffffff; padding: 20px; border-radius: 4px;
+        text-align: center; border: 2px solid #000; margin-bottom: 25px;
+    }
+
+    /* チャットメッセージのスタイル */
+    .chat-msg-container {
+        margin-bottom: 8px;
+        padding: 8px;
+        background-color: #ffffff;
+        border-bottom: 1px solid #eee;
+        color: #000000 !important;
+    }
+    .chat-all { border-left: 4px solid #9e9e9e; }
+    .chat-team { border-left: 4px solid #2196f3; }
+    .chat-role { border-left: 4px solid #ffeb3b; }
     
-    .stSidebar div.stButton > button {{
-        height: 32px !important; font-size: 14px !important;
-        background-color: #ff4b4b !important; color: white !important; border: none !important;
-    }}
+    .chat-info { font-size: 0.7rem; color: #888; margin-bottom: 2px; }
+    .chat-time { color: #bbb; margin-left: 5px; }
+    .chat-text { font-size: 0.9rem; word-wrap: break-word; color: #000 !important; }
+
+    /* サイドバーのボタン（×ボタンなど）を小さくする設定 */
+    .stSidebar .stButton > button {
+        height: 24px !important; padding: 0 !important; font-size: 0.7rem !important;
+        background-color: #f0f0f0 !important; color: #333 !important; border: 1px solid #ccc !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -108,64 +98,133 @@ def get_default_words():
         "ラベルライター", "アンプ", "タックシール", "チューナー", "インデックス", "メトロノーム", "穴あき補強シール", "ミシン", "荷札", "毛玉取り機"
     ]
 
-# --- 4. ログイン画面 ---
+# --- 3. ログイン画面 ---
 if "room_id" not in st.session_state:
     st.title("CodeName Online")
     r_id = st.text_input("ルームIDを入力").strip()
     u_name = st.text_input("プレイヤー名を入力").strip()
+    
     if st.button("入室する"):
         if r_id and u_name:
             if r_id not in global_data["rooms"]:
                 global_data["rooms"][r_id] = {
                     "host": u_name, "status": "setup", "board": [], "players": {}, 
                     "current_team": "red", "phase": "giving_clue", "hint": {"word": "", "count": 0}, 
-                    "winner": None, "word_packs": {"標準パック": get_default_words()}, "selected_pack": "標準パック"
+                    "winner": None, "word_packs": {"標準パック": get_default_words()}, "selected_pack": "標準パック",
+                    "chat_logs": []
                 }
             if u_name not in global_data["rooms"][r_id]["players"]:
                 global_data["rooms"][r_id]["players"][u_name] = {"side": "赤チーム", "role": "観戦者"}
             st.session_state.room_id = r_id
             st.session_state.user_name = u_name
             st.rerun()
+    
+    # 全部屋削除ボタンの復活
+    st.divider()
+    with st.expander("システム管理"):
+        if st.button("サーバー上の全ルームを強制削除"):
+            global_data["rooms"] = {}
+            st.success("全てのルームを削除しました")
+            st.rerun()
     st.stop()
 
-# --- 5. ルーム管理 ---
+# --- 4. 共通データへの参照 ---
 room_id = st.session_state.room_id
 user_name = st.session_state.user_name
-if room_id not in global_data["rooms"]:
-    del st.session_state.room_id
-    st.rerun()
-
 room = global_data["rooms"][room_id]
+my_info = room["players"].get(user_name, {"side": "赤チーム", "role": "観戦者"})
 is_host = (room["host"] == user_name)
 
-# サイドバー：メンバー一覧
+# --- 5. サイドバー：メンバー & チャット ---
 with st.sidebar:
-    st.write(f"🏠 ID: **{room_id}**")
+    st.subheader(f"Room: {room_id}")
+    
+    # メンバー一覧
+    st.write("--- メンバー ---")
     for name, info in list(room["players"].items()):
         p_color = "#d9534f" if info["side"] == "赤チーム" else "#428bca"
-        cols = st.columns([4, 1])
-        with cols[0]:
+        m_col1, m_col2 = st.columns([5, 1]) 
+        with m_col1:
             st.markdown(f'<div class="player-tag-text" style="background-color:{p_color}">{info["side"][0]} | {info["role"][:2]} : {name}</div>', unsafe_allow_html=True)
-        with cols[1]:
+        with m_col2:
             if is_host and name != user_name:
-                if st.button("X", key=f"kick_{name}"):
+                if st.button("×", key=f"kick_{name}"): # キックボタンを「×」に統一
                     del room["players"][name]
                     st.rerun()
-    if st.button("退出"):
+
+    st.write("--- チャット ---")
+    chat_type = st.radio("送信先", ["全員", "チーム", "役職のみ"], horizontal=True, key="ctype")
+    c_msg = st.text_input("メッセージを入力", key="cinput")
+    
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        if st.button("送信", use_container_width=True):
+            if c_msg:
+                now_str = datetime.now().strftime("%H:%M:%S")
+                new_chat = {
+                    "id": random.randint(0, 999999),
+                    "sender": user_name,
+                    "team": my_info["side"],
+                    "role": my_info["role"],
+                    "text": c_msg,
+                    "type": chat_type,
+                    "time": now_str
+                }
+                room["chat_logs"].append(new_chat)
+                st.rerun()
+    with col_c2:
+        if is_host:
+            if st.button("全消去", use_container_width=True):
+                room["chat_logs"] = []
+                st.rerun()
+
+    # チャットログ表示
+    st.markdown('<div style="margin-top:10px; font-weight:bold; font-size:0.8rem;">チャット履歴</div>', unsafe_allow_html=True)
+    for i, log in enumerate(reversed(room["chat_logs"])):
+        visible = False
+        css_type = "chat-all"
+        if log["type"] == "全員":
+            visible = True
+            css_type = "chat-all"
+        elif log["type"] == "チーム":
+            if log["team"] == my_info["side"]: visible = True
+            css_type = "chat-team"
+        elif log["type"] == "役職のみ":
+            if log["team"] == my_info["side"] and log["role"] == my_info["role"]: visible = True
+            css_type = "chat-role"
+        
+        if visible:
+            l_col1, l_col2 = st.columns([5.5, 1])
+            with l_col1:
+                st.markdown(f'''
+                    <div class="chat-msg-container {css_type}">
+                        <div class="chat-info">[{log["type"]}] <b>{log["sender"]}</b> <span class="chat-time">{log["time"]}</span></div>
+                        <div class="chat-text">{log["text"]}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+            with l_col2:
+                if log["sender"] == user_name or is_host:
+                    if st.button("×", key=f"del_{log['id']}_{i}"): # 削除ボタンを「×」に統一
+                        room["chat_logs"] = [l for l in room["chat_logs"] if l.get("id") != log["id"]]
+                        st.rerun()
+
+    st.write("---")
+    if st.button("ルームから退出"):
         if user_name in room["players"]: del room["players"][user_name]
         del st.session_state.room_id
         st.rerun()
 
-# --- 6. セットアップ / 試合中 ---
+# --- 6. セットアップ画面 ---
 if room["status"] == "setup":
-    st.title("セットアップ")
+    st.title(f"CodeName - セットアップ")
     col_l, col_r = st.columns(2)
-    with col_l: my_side = st.radio("チーム", ["赤チーム", "青チーム"], index=0 if room["players"][user_name]["side"] == "赤チーム" else 1)
-    with col_r: my_role = st.radio("役職", ["プレイヤー", "スパイマスター", "観戦者"], index=["プレイヤー", "スパイマスター", "観戦者"].index(room["players"][user_name]["role"]))
+    with col_l: my_side = st.radio("あなたのチーム", ["赤チーム", "青チーム"], index=0 if my_info["side"] == "赤チーム" else 1)
+    with col_r: my_role = st.radio("あなたの役職", ["プレイヤー", "スパイマスター", "観戦者"], index=["プレイヤー", "スパイマスター", "観戦者"].index(my_info["role"]))
     room["players"][user_name] = {"side": my_side, "role": my_role}
+
     if is_host:
         st.divider()
-        room["selected_pack"] = st.selectbox("単語パック", list(room["word_packs"].keys()))
+        room["selected_pack"] = st.selectbox("使用単語パック", list(room["word_packs"].keys()))
         if st.button("試合開始", use_container_width=True):
             source = room["word_packs"][room["selected_pack"]]
             selected_words = random.sample(source, 25)
@@ -174,35 +233,38 @@ if room["status"] == "setup":
             room["board"] = [{"word": s, "role": r, "is_flipped": False} for s, r in zip(selected_words, roles)]
             room["current_team"] = "red"; room["phase"] = "giving_clue"; room["winner"] = None; room["status"] = "playing"
             st.rerun()
+    else:
+        st.info("ホストが試合を開始するのを待っています...")
+
+# --- 7. 試合画面 ---
 else:
-    # 試合表示
-    my_info = room["players"].get(user_name, {"side": "赤チーム", "role": "観戦者"})
     curr_team_code = room["current_team"]
     curr_team_name = "赤チーム" if curr_team_code == "red" else "青チーム"
     curr_color = "#d9534f" if curr_team_code == "red" else "#428bca"
 
     if room["winner"]:
         win_color = "#d9534f" if room["winner"] == "red" else "#428bca"
-        st.markdown(f'<div style="background-color:{win_color}; color:white; font-size:1.8rem; text-align:center; border-radius:4px; padding:10px;">{"赤" if room["winner"]=="red" else "青"}の勝利！</div>', unsafe_allow_html=True)
-        if is_host and st.button("セットアップに戻る"): room["status"] = "setup"; st.rerun()
+        st.markdown(f'<div style="background-color:{win_color}; color:white; font-size:2.5rem; text-align:center; border-radius:4px; padding:20px; margin-bottom:20px;">{"赤チーム" if room["winner"]=="red" else "青チーム"} の勝利！</div>', unsafe_allow_html=True)
 
+    st.title(f"{my_info['side']} / {my_info['role']}")
     r_left = sum(1 for c in room["board"] if c["role"] == "red" and not c["is_flipped"])
     b_left = sum(1 for c in room["board"] if c["role"] == "blue" and not c["is_flipped"])
-    st.markdown(f"🔴 **{r_left}**   🔵 **{b_left}** / {my_info['side']}・{my_info['role']}")
+    st.write(f"残り枚数: <span style='color:#d9534f; font-weight:bold;'>赤 {r_left}</span> / <span style='color:#428bca; font-weight:bold;'>青 {b_left}</span>", unsafe_allow_html=True)
 
     if room["hint"]["word"]:
-        st.markdown(f'<div class="hint-area">ヒント：<b style="font-size:1.3rem; color:{curr_color}">{room["hint"]["word"]}</b> ({room["hint"]["count"]}枚)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="hint-area">ヒント：<b style="font-size:1.8rem; color:{curr_color}">{room["hint"]["word"]}</b> ({room["hint"]["count"]}枚)</div>', unsafe_allow_html=True)
 
-    if not room["winner"] and room["phase"] == "guessing" and my_info["role"] == "プレイヤー" and my_info["side"] == curr_team_name:
-        if st.button("ターン終了"):
-            room["current_team"] = "blue" if curr_team_code == "red" else "red"; room["phase"] = "giving_clue"; room["hint"] = {"word": "", "count": 0}; st.rerun()
+    # 操作パネル
+    if not room["winner"] and my_info["side"] == curr_team_name:
+        if room["phase"] == "guessing" and my_info["role"] == "プレイヤー":
+            if st.button("回答を終了して交代", use_container_width=True):
+                room["current_team"] = "blue" if curr_team_code == "red" else "red"; room["phase"] = "giving_clue"; room["hint"] = {"word": "", "count": 0}; st.rerun()
+        elif room["phase"] == "giving_clue" and my_info["role"] == "スパイマスター":
+            with st.expander("ヒントを出す", expanded=True):
+                h_word = st.text_input("単語を入力"); h_count = st.number_input("枚数", 1, 9, 1)
+                if st.button("ヒント送信"): room["hint"] = {"word": h_word, "count": h_count}; room["phase"] = "guessing"; st.rerun()
 
-    if not room["winner"] and room["phase"] == "giving_clue" and my_info["role"] == "スパイマスター" and my_info["side"] == curr_team_name:
-        with st.expander("ヒント入力"):
-            h_word = st.text_input("単語")
-            h_count = st.number_input("枚数", 1, 9, 1)
-            if st.button("送信"): room["hint"] = {"word": h_word, "count": h_count}; room["phase"] = "guessing"; st.rerun()
-
+    # ボード表示
     bg_colors = {"red": "#d9534f", "blue": "#428bca", "neutral": "#CCCCCC", "assassin": "#333333"}
     for i in range(5):
         cols = st.columns(5)
@@ -214,14 +276,13 @@ else:
                     st.markdown(f'<div class="flipped-card" style="background-color:{bg_colors[card["role"]]}; color:{"white" if card["role"]!="neutral" else "black"};">{card["word"]}</div>', unsafe_allow_html=True)
                 else:
                     if my_info["role"] in ["スパイマスター", "観戦者"]:
-                        st.markdown(f'<div class="flipped-card" style="border:3px solid {bg_colors[card["role"]]}; background-color:white; color:black;">{card["word"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="flipped-card" style="border:4px solid {bg_colors[card["role"]]}; background-color:white; color:black;">{card["word"]}</div>', unsafe_allow_html=True)
                     elif not room["winner"] and my_info["role"] == "プレイヤー" and room["phase"] == "guessing" and my_info["side"] == curr_team_name:
-                        if st.button(card["word"], key=f"btn_{idx}"):
-                            card["is_flipped"] = True
+                        if st.button(card["word"], key=f"btn_{idx}", use_container_width=True):
+                            card.update({"is_flipped": True})
                             if card["role"] == "assassin": room["winner"] = "blue" if curr_team_code == "red" else "red"
                             elif card["role"] != curr_team_code: room["current_team"] = "blue" if curr_team_code == "red" else "red"; room["phase"] = "giving_clue"; room["hint"] = {"word": "", "count": 0}
                             if sum(1 for c in room["board"] if c["role"] == "red" and not c["is_flipped"]) == 0: room["winner"] = "red"
                             if sum(1 for c in room["board"] if c["role"] == "blue" and not c["is_flipped"]) == 0: room["winner"] = "blue"
                             st.rerun()
-                    else:
-                        st.markdown(f'<div class="flipped-card" style="border:1px solid #ddd; background-color:white; color:black;">{card["word"]}</div>', unsafe_allow_html=True)
+                    else: st.markdown(f'<div class="flipped-card" style="border:1px solid #ddd; background-color:white; color:black;">{card["word"]}</div>', unsafe_allow_html=True)
