@@ -140,7 +140,7 @@ st.markdown("""
 
 # --- 3. ログイン画面 ---
 if "room_id" not in st.session_state:
-    st.title("🕵️ CodeName Online")
+    st.title("CodeName Online")
     r_id = st.text_input("ルームIDを入力").strip()
     u_name = st.text_input("プレイヤー名を入力").strip()
     
@@ -176,7 +176,7 @@ is_host = (room["host"] == user_name)
 
 # --- 4. サイドバー ---
 with st.sidebar:
-    st.subheader(f"📍 Room: {room_id}")
+    st.subheader(f"Room: {room_id}")
     st.write("--- メンバー ---")
     for name, info in list(room["players"].items()):
         p_color = "#d9534f" if info["side"] == "赤チーム" else "#428bca"
@@ -234,10 +234,10 @@ with st.sidebar:
 
 # --- 5. セットアップ画面 ---
 if room["status"] == "setup":
-    st.title("⚙️ セットアップ")
+    st.title("セットアップ")
     
     if is_host:
-        with st.expander("📁 単語パック管理"):
+        with st.expander("単語パック管理"):
             up_file = st.file_uploader("新パック追加 (.txt)", type="txt")
             if up_file:
                 with open(os.path.join("word_packs", up_file.name), "wb") as f:
@@ -262,7 +262,7 @@ if room["status"] == "setup":
     if is_host:
         st.divider()
         room["selected_pack"] = st.selectbox("使用するパック", list(room["word_packs"].keys()))
-        if st.button("🎮 試合開始", use_container_width=True):
+        if st.button("試合開始", use_container_width=True):
             source = room["word_packs"][room["selected_pack"]]
             if len(source) >= 25:
                 selected = random.sample(source, 25)
@@ -284,7 +284,7 @@ else:
         w_c = "#d9534f" if room["winner"] == "red" else "#428bca"
         st.markdown(f'<div style="background-color:{w_c}; color:white; font-size:2rem; text-align:center; padding:20px; border-radius:12px; margin-bottom:20px;">{"赤" if room["winner"]=="red" else "青"}チームの勝利！</div>', unsafe_allow_html=True)
 
-    st.title(f"🎭 {my_info['side']} / {my_info['role']}")
+    st.title(f"{my_info['side']} / {my_info['role']}")
     r_n = sum(1 for c in room["board"] if c["role"] == "red" and not c["is_flipped"])
     b_n = sum(1 for c in room["board"] if c["role"] == "blue" and not c["is_flipped"])
     st.write(f"残り: <span style='color:#d9534f; font-weight:bold;'>赤 {r_n}</span> / <span style='color:#428bca; font-weight:bold;'>青 {b_n}</span>", unsafe_allow_html=True)
@@ -297,7 +297,7 @@ else:
             if st.button("ターンを終了して交代", use_container_width=True):
                 room["current_team"] = "blue" if curr_t=="red" else "red"; room["phase"] = "giving_clue"; room["hint"] = {"word":"", "count":0}; st.rerun()
         elif room["phase"] == "giving_clue" and my_info["role"] == "スパイマスター":
-            with st.expander("💡 ヒントを入力する", expanded=True):
+            with st.expander("ヒントを入力する", expanded=True):
                 hw = st.text_input("連想ワード"); hc = st.number_input("対象枚数", 1, 9, 1)
                 if st.button("ヒントを送信"): room["hint"] = {"word": hw, "count": hc}; room["phase"] = "guessing"; st.rerun()
 
