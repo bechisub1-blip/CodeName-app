@@ -11,9 +11,30 @@ def get_global_state():
 
 global_data = get_global_state()
 
+# 単語ファイルを読み込む関数
+def load_custom_word_packs():
+    packs = {"標準パック": get_default_words()}
+    folder = "word_packs"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        # サンプルファイルを作成
+        with open(os.path.join(folder, "sample.txt"), "w", encoding="utf-8") as f:
+            f.write("太陽\n月\n星\n空\n海")
+    
+    for file in os.listdir(folder):
+        if file.endswith(".txt"):
+            pack_name = file.replace(".txt", "")
+            with open(os.path.join(folder, file), "r", encoding="utf-8") as f:
+                words = [line.strip() for line in f if line.strip()]
+                if len(words) >= 25:
+                    packs[pack_name] = words
+                else:
+                    # 25個未満の場合は標準パックで補完するか警告（ここでは読み込まない）
+                    pass
+    return packs
+
 def cleanup_rooms():
     rooms = global_data["rooms"]
-    # プレイヤーが0人の部屋を掃除
     to_delete = [r_id for r_id, r_data in rooms.items() if not r_data.get("players") and r_data.get("status") != "setup"]
     for r_id in to_delete:
         del rooms[r_id]
@@ -26,8 +47,6 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
     html, body, [class*="css"] { font-family: 'Noto Sans JP', sans-serif; }
-    
-    /* カードの基本設定 */
     div.stButton > button {
         width: 100% !important; height: 100px !important;
         background-color: white !important; color: black !important;
@@ -49,54 +68,31 @@ st.markdown("""
         background-color: #ffffff; padding: 20px; border-radius: 4px;
         text-align: center; border: 2px solid #000; margin-bottom: 25px;
     }
-
-    /* チャットメッセージのスタイル */
     .chat-msg-container {
-        margin-bottom: 8px;
-        padding: 8px;
-        background-color: #ffffff;
-        border-bottom: 1px solid #eee;
-        color: #000000 !important;
+        margin-bottom: 8px; padding: 8px; background-color: #ffffff;
+        border-bottom: 1px solid #eee; color: #000000 !important;
     }
     .chat-all { border-left: 4px solid #9e9e9e; }
     .chat-team { border-left: 4px solid #2196f3; }
     .chat-role { border-left: 4px solid #ffeb3b; }
-    
     .chat-info { font-size: 0.7rem; color: #888; margin-bottom: 2px; }
     .chat-time { color: #bbb; margin-left: 5px; }
     .chat-text { font-size: 0.9rem; word-wrap: break-word; color: #000 !important; }
-
-    /* サイドバーのボタン（×ボタンなど）を小さくする設定 */
     .stSidebar .stButton > button {
         height: 24px !important; padding: 0 !important; font-size: 0.7rem !important;
         background-color: #f0f0f0 !important; color: #333 !important; border: 1px solid #ccc !important;
+    }
+    /* 強制終了ボタン専用のスタイル */
+    .terminate-btn button {
+        background-color: #ff4b4b !important; color: white !important;
+        height: 40px !important; font-size: 0.9rem !important; margin-top: 20px !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 def get_default_words():
-    return [
-        "シャープペンシル", "冷蔵庫", "消しゴム", "洗濯機", "ボールペン", "炊飯器", "修正テープ", "電子レンジ", "定規", "掃除機",
-        "ハサミ", "テレビ", "カッターナイフ", "エアコン", "ホッチキス", "空気清浄機", "のり", "ドライヤー", "付箋", "電気ケトル",
-        "ノート", "トースター", "コンパス", "加湿器", "分度器", "除湿器", "色鉛筆", "扇風機", "万年筆", "食洗機",
-        "サインペン", "コーヒーメーカー", "蛍光ペン", "アイロン", "鉛筆削り", "ホットプレート", "バインダー", "電気毛布", "クリアファイル", "温水洗浄便座",
-        "クリップ", "ズボンプレッサー", "パンチ", "布団乾燥機", "画鋲", "電話機", "メジャー", "翻訳機", "穴あけパンチ", "デジタルカメラ",
-        "粘着テープ", "ビデオカメラ", "マスキングテープ", "プロジェクター", "穴あき定規", "スピーカー", "レターセット", "ヘッドホン", "封筒", "イヤホン",
-        "原稿用紙", "ラジオ", "画用紙", "レコードプレーヤー", "スケッチブック", "コンポ", "単語帳", "ICレコーダー", "筆箱", "電子辞書",
-        "下敷き", "ノートパソコン", "修正液", "デスクトップPC", "彫刻刀", "モニター", "習字セット", "キーボード", "絵の具", "マウス",
-        "パレット", "外付けHDD", "筆", "USBメモリ", "文鎮", "プリンター", "スズランテープ", "スキャナー", "セロハンテープ", "コピー機",
-        "両面テープ", "シュレッダー", "クラフトパンチ", "ラミネーター", "裁断機", "電卓", "コンパス", "ストップウォッチ", "三角定規", "スマートフォン",
-        "テンプレート", "タブレット", "雲形定規", "スマートウォッチ", "製図ペン", "モバイルバッテリー", "烏口", "充電器", "トレーシングペーパー", "懐中電灯",
-        "カーボン紙", "ランタン", "模造紙", "ミキサー", "折り紙", "ジューサー", "履歴書", "フードプロセッサー", "便箋", "電気圧力鍋",
-        "ぽち袋", "低温調理器", "祝儀袋", "ホームベーカリー", "芳名録", "ハンドミキサー", "印鑑", "ワッフルメーカー", "朱肉", "かき氷機",
-        "スタンプ台", "電気フライヤー", "認印", "ワインセラー", "訂正印", "生ごみ処理機", "デスクマット", "浄水器", "ブックエンド", "電気スタンド",
-        "本立て", "シーリングライト", "ペン立て", "サーキュレーター", "書類トレー", "こたつ", "名刺入れ", "電気ストーブ", "カードケース", "石油ファンヒーター",
-        "パスケース", "オイルヒーター", "ペンケース", "電気カーペット", "マグネット", "体重計", "ホワイトボード", "体組成計", "黒板", "血圧計",
-        "チョーク", "電動歯ブラシ", "黒板消し", "電気シェーバー", "掲示板", "脱毛器", "コルクボード", "美顔器", "カレンダー", "スチーマー",
-        "手帳", "マッサージチェア", "日記帳", "フットマッサージャー", "家計簿", "ハンディマッサージャー", "地図", "デジタルフォトフレーム", "地球儀", "ブルーレイレコーダー",
-        "虫眼鏡", "セットトップボックス", "老眼鏡", "ゲーム機", "顕微鏡", "VRゴーグル", "望遠鏡", "電子ピアノ", "分別シール", "キーボード（楽器）",
-        "ラベルライター", "アンプ", "タックシール", "チューナー", "インデックス", "メトロノーム", "穴あき補強シール", "ミシン", "荷札", "毛玉取り機"
-    ]
+    # ... (既存の単語リストをそのまま維持) ...
+    return ["シャープペンシル", "冷蔵庫", "消しゴム", "洗濯機", "ボールペン", "炊飯器", "修正テープ", "電子レンジ", "定規", "掃除機", "ハサミ", "テレビ", "カッターナイフ", "エアコン", "ホッチキス", "空気清浄機", "のり", "ドライヤー", "付箋", "電気ケトル", "ノート", "トースター", "コンパス", "加湿器", "分度器", "除湿器", "色鉛筆", "扇風機", "万年筆", "食洗機", "サインペン", "コーヒーメーカー", "蛍光ペン", "アイロン", "鉛筆削り", "ホットプレート", "バインダー", "電気毛布", "クリアファイル", "温水洗浄便座", "クリップ", "ズボンプレッサー", "パンチ", "布団乾燥機", "画鋲", "電話機", "メジャー", "翻訳機", "穴あけパンチ", "デジタルカメラ", "粘着テープ", "ビデオカメラ", "マスキングテープ", "プロジェクター", "穴あき定規", "スピーカー", "レターセット", "ヘッドホン", "封筒", "イヤホン", "原稿用紙", "ラジオ", "画用紙", "レコードプレーヤー", "スケッチブック", "コンポ", "単語帳", "ICレコーダー", "筆箱", "電子辞書", "下敷き", "ノートパソコン", "修正液", "デスクトップPC", "彫刻刀", "モニター", "習字セット", "キーボード", "絵の具", "マウス", "パレット", "外付けHDD", "筆", "USBメモリ", "文鎮", "プリンター", "スズランテープ", "スキャナー", "セロハンテープ", "コピー機", "両面テープ", "シュレッダー", "クラフトパンチ", "ラミネーター", "裁断機", "電卓", "ストップウォッチ", "三角定規", "スマートフォン", "テンプレート", "タブレット", "雲形定規", "スマートウォッチ", "製図ペン", "モバイルバッテリー", "烏口", "充電器", "トレーシングペーパー", "懐中電灯", "カーボン紙", "ランタン", "模造紙", "ミキサー", "折り紙", "ジューサー", "履歴書", "フードプロセッサー", "便箋", "電気圧力鍋", "ぽち袋", "低温調理器", "祝儀袋", "ホームベーカリー", "芳名録", "ハンドミキサー", "印鑑", "ワッフルメーカー", "朱肉", "かき氷機", "スタンプ台", "電気フライヤー", "認印", "ワインセラー", "訂正印", "生ごみ処理機", "デスクマット", "浄水器", "ブックエンド", "電気スタンド", "本立て", "シーリングライト", "ペン立て", "サーキュレーター", "書類トレー", "こたつ", "名刺入れ", "電気ストーブ", "カードケース", "石油ファンヒーター", "パスケース", "オイルヒーター", "ペンケース", "電気カーペット", "マグネット", "体重計", "ホワイトボード", "体組成計", "黒板", "血圧計", "チョーク", "電動歯ブラシ", "黒板消し", "電気シェーバー", "掲示板", "脱毛器", "コルクボード", "美顔器", "カレンダー", "スチーマー", "手帳", "マッサージチェア", "日記帳", "フットマッサージャー", "家計簿", "ハンディマッサージャー", "地図", "デジタルフォトフレーム", "地球儀", "ブルーレイレコーダー", "虫眼鏡", "セットトップボックス", "老眼鏡", "ゲーム機", "顕微鏡", "VRゴーグル", "望遠鏡", "電子ピアノ", "分別シール", "キーボード（楽器）", "ラベルライター", "アンプ", "タックシール", "チューナー", "インデックス", "メトロノーム", "穴あき補強シール", "ミシン", "荷札", "毛玉取り機"]
 
 # --- 3. ログイン画面 ---
 if "room_id" not in st.session_state:
@@ -110,7 +106,7 @@ if "room_id" not in st.session_state:
                 global_data["rooms"][r_id] = {
                     "host": u_name, "status": "setup", "board": [], "players": {}, 
                     "current_team": "red", "phase": "giving_clue", "hint": {"word": "", "count": 0}, 
-                    "winner": None, "word_packs": {"標準パック": get_default_words()}, "selected_pack": "標準パック",
+                    "winner": None, "word_packs": load_custom_word_packs(), "selected_pack": "標準パック",
                     "chat_logs": []
                 }
             if u_name not in global_data["rooms"][r_id]["players"]:
@@ -119,7 +115,6 @@ if "room_id" not in st.session_state:
             st.session_state.user_name = u_name
             st.rerun()
     
-    # 全部屋削除ボタンの復活
     st.divider()
     with st.expander("システム管理"):
         if st.button("サーバー上の全ルームを強制削除"):
@@ -139,7 +134,6 @@ is_host = (room["host"] == user_name)
 with st.sidebar:
     st.subheader(f"Room: {room_id}")
     
-    # メンバー一覧
     st.write("--- メンバー ---")
     for name, info in list(room["players"].items()):
         p_color = "#d9534f" if info["side"] == "赤チーム" else "#428bca"
@@ -148,29 +142,22 @@ with st.sidebar:
             st.markdown(f'<div class="player-tag-text" style="background-color:{p_color}">{info["side"][0]} | {info["role"][:2]} : {name}</div>', unsafe_allow_html=True)
         with m_col2:
             if is_host and name != user_name:
-                if st.button("×", key=f"kick_{name}"): # キックボタンを「×」に統一
+                if st.button("×", key=f"kick_{name}"):
                     del room["players"][name]
                     st.rerun()
 
     st.write("--- チャット ---")
     chat_type = st.radio("送信先", ["全員", "チーム", "役職のみ"], horizontal=True, key="ctype")
     c_msg = st.text_input("メッセージを入力", key="cinput")
-    
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         if st.button("送信", use_container_width=True):
             if c_msg:
                 now_str = datetime.now().strftime("%H:%M:%S")
-                new_chat = {
-                    "id": random.randint(0, 999999),
-                    "sender": user_name,
-                    "team": my_info["side"],
-                    "role": my_info["role"],
-                    "text": c_msg,
-                    "type": chat_type,
-                    "time": now_str
-                }
-                room["chat_logs"].append(new_chat)
+                room["chat_logs"].append({
+                    "id": random.randint(0, 999999), "sender": user_name, "team": my_info["side"],
+                    "role": my_info["role"], "text": c_msg, "type": chat_type, "time": now_str
+                })
                 st.rerun()
     with col_c2:
         if is_host:
@@ -178,14 +165,10 @@ with st.sidebar:
                 room["chat_logs"] = []
                 st.rerun()
 
-    # チャットログ表示
-    st.markdown('<div style="margin-top:10px; font-weight:bold; font-size:0.8rem;">チャット履歴</div>', unsafe_allow_html=True)
     for i, log in enumerate(reversed(room["chat_logs"])):
         visible = False
         css_type = "chat-all"
-        if log["type"] == "全員":
-            visible = True
-            css_type = "chat-all"
+        if log["type"] == "全員": visible = True; css_type = "chat-all"
         elif log["type"] == "チーム":
             if log["team"] == my_info["side"]: visible = True
             css_type = "chat-team"
@@ -196,19 +179,24 @@ with st.sidebar:
         if visible:
             l_col1, l_col2 = st.columns([5.5, 1])
             with l_col1:
-                st.markdown(f'''
-                    <div class="chat-msg-container {css_type}">
-                        <div class="chat-info">[{log["type"]}] <b>{log["sender"]}</b> <span class="chat-time">{log["time"]}</span></div>
-                        <div class="chat-text">{log["text"]}</div>
-                    </div>
-                ''', unsafe_allow_html=True)
+                st.markdown(f'<div class="chat-msg-container {css_type}"><div class="chat-info">[{log["type"]}] <b>{log["sender"]}</b> <span class="chat-time">{log["time"]}</span></div><div class="chat-text">{log["text"]}</div></div>', unsafe_allow_html=True)
             with l_col2:
                 if log["sender"] == user_name or is_host:
-                    if st.button("×", key=f"del_{log['id']}_{i}"): # 削除ボタンを「×」に統一
+                    if st.button("×", key=f"del_{log['id']}_{i}"):
                         room["chat_logs"] = [l for l in room["chat_logs"] if l.get("id") != log["id"]]
                         st.rerun()
 
     st.write("---")
+    # ホスト専用：強制終了（リセット）ボタン
+    if is_host and room["status"] == "playing":
+        st.markdown('<div class="terminate-btn">', unsafe_allow_html=True)
+        if st.button("強制終了してセットアップに戻る", key="terminate_game"):
+            room["status"] = "setup"
+            room["board"] = []
+            room["winner"] = None
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     if st.button("ルームから退出"):
         if user_name in room["players"]: del room["players"][user_name]
         del st.session_state.room_id
@@ -224,20 +212,30 @@ if room["status"] == "setup":
 
     if is_host:
         st.divider()
+        # 単語パックの再読み込みボタン
+        if st.button("単語パックを更新（.txt読込）"):
+            room["word_packs"] = load_custom_word_packs()
+            st.rerun()
+        
         room["selected_pack"] = st.selectbox("使用単語パック", list(room["word_packs"].keys()))
+        
         if st.button("試合開始", use_container_width=True):
             source = room["word_packs"][room["selected_pack"]]
-            selected_words = random.sample(source, 25)
-            roles = (["red"] * 9) + (["blue"] * 8) + (["neutral"] * 7) + (["assassin"] * 1)
-            random.shuffle(roles)
-            room["board"] = [{"word": s, "role": r, "is_flipped": False} for s, r in zip(selected_words, roles)]
-            room["current_team"] = "red"; room["phase"] = "giving_clue"; room["winner"] = None; room["status"] = "playing"
-            st.rerun()
+            if len(source) < 25:
+                st.error("単語が25個以上必要です！")
+            else:
+                selected_words = random.sample(source, 25)
+                roles = (["red"] * 9) + (["blue"] * 8) + (["neutral"] * 7) + (["assassin"] * 1)
+                random.shuffle(roles)
+                room["board"] = [{"word": s, "role": r, "is_flipped": False} for s, r in zip(selected_words, roles)]
+                room["current_team"] = "red"; room["phase"] = "giving_clue"; room["winner"] = None; room["status"] = "playing"
+                st.rerun()
     else:
         st.info("ホストが試合を開始するのを待っています...")
 
 # --- 7. 試合画面 ---
 else:
+    # ... (既存の試合画面ロジックをそのまま維持) ...
     curr_team_code = room["current_team"]
     curr_team_name = "赤チーム" if curr_team_code == "red" else "青チーム"
     curr_color = "#d9534f" if curr_team_code == "red" else "#428bca"
@@ -254,7 +252,6 @@ else:
     if room["hint"]["word"]:
         st.markdown(f'<div class="hint-area">ヒント：<b style="font-size:1.8rem; color:{curr_color}">{room["hint"]["word"]}</b> ({room["hint"]["count"]}枚)</div>', unsafe_allow_html=True)
 
-    # 操作パネル
     if not room["winner"] and my_info["side"] == curr_team_name:
         if room["phase"] == "guessing" and my_info["role"] == "プレイヤー":
             if st.button("回答を終了して交代", use_container_width=True):
@@ -264,7 +261,6 @@ else:
                 h_word = st.text_input("単語を入力"); h_count = st.number_input("枚数", 1, 9, 1)
                 if st.button("ヒント送信"): room["hint"] = {"word": h_word, "count": h_count}; room["phase"] = "guessing"; st.rerun()
 
-    # ボード表示
     bg_colors = {"red": "#d9534f", "blue": "#428bca", "neutral": "#CCCCCC", "assassin": "#333333"}
     for i in range(5):
         cols = st.columns(5)
